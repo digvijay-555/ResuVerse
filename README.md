@@ -20,7 +20,7 @@
 
 ## 🔗 Live Demo
 
-- **Live Application**: [https://resuverse.vercel.app](https://resuverse.vercel.app) *(demo placeholder)*
+- **Live Application**: [https://resuverse-gamma.vercel.app](https://resuverse-gamma.vercel.app)
 
 ---
 
