@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+.env*.local
+.env
+public/uploads/*
+!public/uploads/.gitkeep
+.idea/
+
+
