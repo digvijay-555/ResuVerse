@@ -4,8 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
 import Resume from "@/models/Resume";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { readFile } from "fs/promises";
-import path from "path";
 import pdfParse from "pdf-parse";
 
 function cleanJsonResponse(rawText: string): string {
@@ -46,15 +44,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Resume not found" }, { status: 404 });
     }
 
-    const pdfPath = path.join(process.cwd(), "public", resume.fileUrl);
     let pdfText = "";
+    let pdfBuffer: Buffer | null = null;
 
-    try {
-      const pdfBuffer = await readFile(pdfPath);
-      const parsedPdf = await pdfParse(pdfBuffer);
-      pdfText = parsedPdf.text || "";
-    } catch (err) {
-      console.warn("Could not extract text via pdf-parse, will fall back to Gemini file inlineData:", err);
+    if (resume.pdfData) {
+      pdfBuffer = Buffer.from(resume.pdfData, "base64");
+    } else if (resume.fileUrl && !resume.fileUrl.startsWith("/api/")) {
+      try {
+        const { readFile } = await import("fs/promises");
+        const path = (await import("path")).default;
+        const pdfPath = path.join(process.cwd(), "public", resume.fileUrl);
+        pdfBuffer = await readFile(pdfPath);
+      } catch (err) {
+        console.warn("Could not read legacy PDF from disk:", err);
+      }
+    }
+
+    if (pdfBuffer) {
+      try {
+        const parsedPdf = await pdfParse(pdfBuffer);
+        pdfText = parsedPdf.text || "";
+      } catch (err) {
+        console.warn("Could not extract text via pdf-parse:", err);
+      }
     }
 
     const prompt = `

@@ -24,6 +24,7 @@ export interface IResume extends Document {
   userId: mongoose.Types.ObjectId | string;
   fileName: string;
   fileUrl: string;
+  pdfData?: string;
   previewImageUrl: string;
   companyName?: string;
   jobTitle?: string;
@@ -68,6 +69,7 @@ const ResumeSchema = new Schema<IResume>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     fileName: { type: String, required: true },
     fileUrl: { type: String, required: true },
+    pdfData: { type: String },
     previewImageUrl: { type: String, required: true },
     companyName: { type: String, default: "" },
     jobTitle: { type: String, default: "" },

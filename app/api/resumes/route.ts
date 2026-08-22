@@ -3,9 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
 import Resume from "@/models/Resume";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import crypto from "crypto";
 
 export async function GET() {
   try {
@@ -17,7 +14,9 @@ export async function GET() {
     const userId = (session.user as any).id;
     await connectToDatabase();
 
-    const resumes = await Resume.find({ userId }).sort({ createdAt: -1 });
+    const resumes = await Resume.find({ userId })
+      .select("-pdfData")
+      .sort({ createdAt: -1 });
 
     return NextResponse.json({ resumes });
   } catch (error: any) {
@@ -49,26 +48,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "PDF resume file is required" }, { status: 400 });
     }
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadsDir, { recursive: true });
-
-    const fileId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-    const pdfFileName = `${fileId}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const pdfFilePath = path.join(uploadsDir, pdfFileName);
-
     const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
-    await writeFile(pdfFilePath, pdfBuffer);
-
-    const fileUrl = `/uploads/${pdfFileName}`;
+    const pdfBase64 = pdfBuffer.toString("base64");
 
     let previewImageUrl = "/images/pdf.png";
 
     if (previewImageFile) {
-      const imgFileName = `${fileId}-preview.png`;
-      const imgFilePath = path.join(uploadsDir, imgFileName);
       const imgBuffer = Buffer.from(await previewImageFile.arrayBuffer());
-      await writeFile(imgFilePath, imgBuffer);
-      previewImageUrl = `/uploads/${imgFileName}`;
+      const mimeType = previewImageFile.type || "image/png";
+      previewImageUrl = `data:${mimeType};base64,${imgBuffer.toString("base64")}`;
     }
 
     await connectToDatabase();
@@ -76,7 +64,8 @@ export async function POST(req: Request) {
     const resume = await Resume.create({
       userId,
       fileName: pdfFile.name,
-      fileUrl,
+      fileUrl: "/api/resumes/pending",
+      pdfData: pdfBase64,
       previewImageUrl,
       companyName,
       jobTitle,
@@ -85,7 +74,14 @@ export async function POST(req: Request) {
       feedback: null,
     });
 
-    return NextResponse.json({ resume }, { status: 201 });
+    resume.fileUrl = `/api/resumes/${resume._id}/file`;
+    await resume.save();
+
+    // Do not return heavy pdfData in JSON response
+    const resumeObj = resume.toObject();
+    delete resumeObj.pdfData;
+
+    return NextResponse.json({ resume: resumeObj }, { status: 201 });
   } catch (error: any) {
     console.error("Error creating resume:", error);
     return NextResponse.json(

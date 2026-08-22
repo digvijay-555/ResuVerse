@@ -3,8 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
 import Resume from "@/models/Resume";
-import { unlink } from "fs/promises";
-import path from "path";
 
 export async function DELETE() {
   try {
@@ -20,15 +18,23 @@ export async function DELETE() {
 
     for (const resume of userResumes) {
       if (resume.fileUrl && resume.fileUrl.startsWith("/uploads/")) {
-        const filePath = path.join(process.cwd(), "public", resume.fileUrl);
-        await unlink(filePath).catch(() => {});
+        try {
+          const { unlink } = await import("fs/promises");
+          const path = (await import("path")).default;
+          const filePath = path.join(process.cwd(), "public", resume.fileUrl);
+          await unlink(filePath).catch(() => {});
+        } catch {}
       }
       if (
         resume.previewImageUrl &&
         resume.previewImageUrl.startsWith("/uploads/")
       ) {
-        const imgPath = path.join(process.cwd(), "public", resume.previewImageUrl);
-        await unlink(imgPath).catch(() => {});
+        try {
+          const { unlink } = await import("fs/promises");
+          const path = (await import("path")).default;
+          const imgPath = path.join(process.cwd(), "public", resume.previewImageUrl);
+          await unlink(imgPath).catch(() => {});
+        } catch {}
       }
     }
 
